@@ -198,6 +198,30 @@ func (s *Node) EnableDiskMode() error {
 	return nil
 }
 
+func (s *Node) EnableRoleManagement() error {
+	server := (*C.dqlite_node)(unsafe.Pointer(s.node))
+	if rc := C.dqlite_node_enable_role_management(server); rc != 0 {
+		return fmt.Errorf("failed to enable server-side role management")
+	}
+	return nil
+}
+
+func (s *Node) SetTargetVoters(voters int) error {
+	server := (*C.dqlite_node)(unsafe.Pointer(s.node))
+	if rc := C.dqlite_node_set_target_voters(server, C.int(voters)); rc != 0 {
+		return fmt.Errorf("failed to set target voters")
+	}
+	return nil
+}
+
+func (s *Node) SetTargetStandBys(standbys int) error {
+	server := (*C.dqlite_node)(unsafe.Pointer(s.node))
+	if rc := C.dqlite_node_set_target_standbys(server, C.int(standbys)); rc != 0 {
+		return fmt.Errorf("failed to set target standbys")
+	}
+	return nil
+}
+
 func (s *Node) GetBindAddress() string {
 	server := (*C.dqlite_node)(unsafe.Pointer(s.node))
 	return C.GoString(C.dqlite_node_get_bind_address(server))

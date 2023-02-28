@@ -44,7 +44,7 @@ Complete documentation is available at https://github.com/canonical/go-dqlite`,
 				}
 				log.Printf(fmt.Sprintf("%s: %s: %s\n", api, l.String(), format), a...)
 			}
-			app, err := app.New(dir, app.WithAddress(db), app.WithCluster(*join), app.WithLogFunc(logFunc), app.WithDiskMode(diskMode))
+			app, err := app.New(dir, app.WithAddress(db), app.WithCluster(*join), app.WithLogFunc(logFunc), app.WithDiskMode(diskMode), app.WithServerSideRoleManagement(true))
 			if err != nil {
 				return err
 			}

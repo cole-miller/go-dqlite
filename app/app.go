@@ -25,26 +25,27 @@ import (
 // It takes care of starting a dqlite node and registering a dqlite Go SQL
 // driver.
 type App struct {
-	id              uint64
-	address         string
-	dir             string
-	node            *dqlite.Node
-	nodeBindAddress string
-	listener        net.Listener
-	tls             *tlsSetup
-	dialFunc        client.DialFunc
-	store           client.NodeStore
-	driver          *driver.Driver
-	driverName      string
-	log             client.LogFunc
-	ctx             context.Context
-	stop            context.CancelFunc // Signal App.run() to stop.
-	proxyCh         chan struct{}      // Waits for App.proxy() to return.
-	runCh           chan struct{}      // Waits for App.run() to return.
-	readyCh         chan struct{}      // Waits for startup tasks
-	voters          int
-	standbys        int
-	roles           RolesConfig
+	id                       uint64
+	address                  string
+	dir                      string
+	node                     *dqlite.Node
+	nodeBindAddress          string
+	listener                 net.Listener
+	tls                      *tlsSetup
+	dialFunc                 client.DialFunc
+	store                    client.NodeStore
+	driver                   *driver.Driver
+	driverName               string
+	log                      client.LogFunc
+	ctx                      context.Context
+	stop                     context.CancelFunc // Signal App.run() to stop.
+	proxyCh                  chan struct{}      // Waits for App.proxy() to return.
+	runCh                    chan struct{}      // Waits for App.run() to return.
+	readyCh                  chan struct{}      // Waits for startup tasks
+	voters                   int
+	standbys                 int
+	roles                    RolesConfig
+	serverSideRoleManagement bool
 }
 
 // New creates a new application node.
@@ -52,6 +53,10 @@ func New(dir string, options ...Option) (app *App, err error) {
 	o := defaultOptions()
 	for _, option := range options {
 		option(o)
+	}
+
+	if o.Voters < 3 || o.Voters%2 == 0 {
+		return nil, fmt.Errorf("invalid voters %d: must be an odd number greater than 1", o.Voters)
 	}
 
 	var nodeBindAddress string
@@ -188,6 +193,7 @@ func New(dir string, options ...Option) (app *App, err error) {
 		dqlite.WithNetworkLatency(o.NetworkLatency),
 		dqlite.WithSnapshotParams(o.SnapshotParams),
 		dqlite.WithDiskMode(o.DiskMode),
+		dqlite.WithServerSideRoleManagement(o.ServerSideRoleManagement, o.Voters, o.StandBys),
 	)
 	if err != nil {
 		stop()
@@ -216,35 +222,31 @@ func New(dir string, options ...Option) (app *App, err error) {
 	driverName := fmt.Sprintf("dqlite-%d", driverIndex)
 	sql.Register(driverName, driver)
 
-	if o.Voters < 3 || o.Voters%2 == 0 {
-		stop()
-		return nil, fmt.Errorf("invalid voters %d: must be an odd number greater than 1", o.Voters)
-	}
-
 	if runtime.GOOS != "linux" && nodeBindAddress[0] == '@' {
 		// Do not use abstract socket on other platforms and left trim "@"
 		nodeBindAddress = nodeBindAddress[1:]
 	}
 
 	app = &App{
-		id:              info.ID,
-		address:         info.Address,
-		dir:             dir,
-		node:            node,
-		nodeBindAddress: nodeBindAddress,
-		store:           store,
-		dialFunc:        driverDial,
-		driver:          driver,
-		driverName:      driverName,
-		log:             o.Log,
-		tls:             o.TLS,
-		ctx:             ctx,
-		stop:            stop,
-		runCh:           make(chan struct{}, 0),
-		readyCh:         make(chan struct{}, 0),
-		voters:          o.Voters,
-		standbys:        o.StandBys,
-		roles:           RolesConfig{Voters: o.Voters, StandBys: o.StandBys},
+		id:                       info.ID,
+		address:                  info.Address,
+		dir:                      dir,
+		node:                     node,
+		nodeBindAddress:          nodeBindAddress,
+		store:                    store,
+		dialFunc:                 driverDial,
+		driver:                   driver,
+		driverName:               driverName,
+		log:                      o.Log,
+		tls:                      o.TLS,
+		ctx:                      ctx,
+		stop:                     stop,
+		runCh:                    make(chan struct{}, 0),
+		readyCh:                  make(chan struct{}, 0),
+		voters:                   o.Voters,
+		standbys:                 o.StandBys,
+		roles:                    RolesConfig{Voters: o.Voters, StandBys: o.StandBys},
+		serverSideRoleManagement: o.ServerSideRoleManagement,
 	}
 
 	// Start the proxy if a TLS configuration was provided.
@@ -297,6 +299,10 @@ func New(dir string, options ...Option) (app *App, err error) {
 // This method should always be called before invoking Close(), in order to
 // gracefully shutdown a node.
 func (a *App) Handover(ctx context.Context) error {
+	if a.serverSideRoleManagement {
+		return nil
+	}
+
 	// Set a hard limit of one minute, in case the user-provided context
 	// has no expiration. That avoids the call to stop responding forever
 	// in case a majority of the cluster is down and no leader is available.
@@ -541,26 +547,34 @@ func (a *App) run(ctx context.Context, frequency time.Duration, join bool) {
 			}
 			a.store.Set(ctx, servers)
 
-			// If we are starting up, let's see if we should
-			// promote ourselves.
-			if !ready {
-				if err := a.maybePromoteOurselves(ctx, cli, servers); err != nil {
-					a.warn("%v", err)
-					delay = time.Second
+			if a.serverSideRoleManagement {
+				if !ready {
+					ready = true
+					delay = frequency
+					close(a.readyCh)
+				}
+			} else {
+				// If we are starting up, let's see if we should
+				// promote ourselves.
+				if !ready {
+					if err := a.maybePromoteOurselves(ctx, cli, servers); err != nil {
+						a.warn("%v", err)
+						delay = time.Second
+						cli.Close()
+						continue
+					}
+					ready = true
+					delay = frequency
+					close(a.readyCh)
 					cli.Close()
 					continue
 				}
-				ready = true
-				delay = frequency
-				close(a.readyCh)
-				cli.Close()
-				continue
-			}
 
-			// If we are the leader, let's see if there's any
-			// adjustment we should make to node roles.
-			if err := a.maybeAdjustRoles(ctx, cli); err != nil {
-				a.warn("adjust roles: %v", err)
+				// If we are the leader, let's see if there's any
+				// adjustment we should make to node roles.
+				if err := a.maybeAdjustRoles(ctx, cli); err != nil {
+					a.warn("adjust roles: %v", err)
+				}
 			}
 			cli.Close()
 		}

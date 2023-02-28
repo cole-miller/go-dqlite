@@ -181,6 +181,12 @@ func WithDiskMode(disk bool) Option {
 	}
 }
 
+func WithServerSideRoleManagement(serverSide bool) Option {
+	return func(options *options) {
+		options.ServerSideRoleManagement = serverSide
+	}
+}
+
 type tlsSetup struct {
 	Listen *tls.Config
 	Dial   *tls.Config
@@ -205,6 +211,7 @@ type options struct {
 	UnixSocket               string
 	SnapshotParams           dqlite.SnapshotParams
 	DiskMode                 bool
+	ServerSideRoleManagement bool
 }
 
 // Create a options object with sane defaults.
@@ -215,6 +222,7 @@ func defaultOptions() *options {
 		StandBys:                 3,
 		RolesAdjustmentFrequency: 30 * time.Second,
 		DiskMode:                 false, // Be explicit about not enabling disk-mode by default.
+		ServerSideRoleManagement: false, // Ditto
 	}
 }
 

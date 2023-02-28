@@ -80,6 +80,14 @@ func WithDiskMode(disk bool) Option {
 	}
 }
 
+func WithServerSideRoleManagement(mgmt bool, voters int, standbys int) Option {
+	return func(options *options) {
+		options.ServerSideRoleManagement = mgmt
+		options.Voters = voters
+		options.StandBys = standbys
+	}
+}
+
 // New creates a new Node instance.
 func New(id uint64, address string, dir string, options ...Option) (*Node, error) {
 	o := defaultOptions()
@@ -131,6 +139,20 @@ func New(id uint64, address string, dir string, options ...Option) (*Node, error
 			return nil, err
 		}
 	}
+	if o.ServerSideRoleManagement {
+		if err := server.SetTargetVoters(o.Voters); err != nil {
+			cancel()
+			return nil, err
+		}
+		if err := server.SetTargetStandBys(o.StandBys); err != nil {
+			cancel()
+			return nil, err
+		}
+		if err := server.EnableRoleManagement(); err != nil {
+			cancel()
+			return nil, err
+		}
+	}
 
 	s := &Node{
 		server:      server,
@@ -164,13 +186,16 @@ func (s *Node) Recover(cluster []NodeInfo) error {
 
 // Hold configuration options for a dqlite server.
 type options struct {
-	Log            client.LogFunc
-	DialFunc       client.DialFunc
-	BindAddress    string
-	NetworkLatency uint64
-	FailureDomain  uint64
-	SnapshotParams bindings.SnapshotParams
-	DiskMode       bool
+	Log                      client.LogFunc
+	DialFunc                 client.DialFunc
+	BindAddress              string
+	NetworkLatency           uint64
+	FailureDomain            uint64
+	SnapshotParams           bindings.SnapshotParams
+	DiskMode                 bool
+	ServerSideRoleManagement bool
+	Voters                   int
+	StandBys                 int
 }
 
 // Close the server, releasing all resources it created.
