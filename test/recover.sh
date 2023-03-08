@@ -5,7 +5,7 @@
 BASEDIR=$(dirname "$0")
 . "$BASEDIR"/dqlite-demo-util.sh
 
-$GO build -tags libsqlite3 ./cmd/dqlite/
+$GO build ./cmd/dqlite/
 
 trap tear_down EXIT
 trap sig_handler HUP INT TERM

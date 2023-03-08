@@ -1,14 +1,5 @@
 package dqlite
 
-import (
-	"fmt"
-	"os"
-
-	"github.com/canonical/go-dqlite/internal/bindings"
-	"github.com/canonical/go-dqlite/internal/protocol"
-	"github.com/pkg/errors"
-)
-
 // ConfigMultiThread sets the threading mode of SQLite to Multi-thread.
 //
 // By default go-dqlite configures SQLite to Single-thread mode, because the
@@ -26,23 +17,8 @@ import (
 // environment variable to 1 at process startup, in order to prevent go-dqlite
 // from setting Single-thread mode at all.
 func ConfigMultiThread() error {
-	if err := bindings.ConfigMultiThread(); err != nil {
-		if err, ok := err.(protocol.Error); ok && err.Code == 21 /* SQLITE_MISUSE */ {
-			return fmt.Errorf("SQLite is already initialized")
-		}
-		return errors.Wrap(err, "unknown error")
-	}
 	return nil
 }
 
 func init() {
-	// Don't enable single thread mode by default if GO_DQLITE_MULTITHREAD
-	// is set.
-	if os.Getenv("GO_DQLITE_MULTITHREAD") == "1" {
-		return
-	}
-	err := bindings.ConfigSingleThread()
-	if err != nil {
-		panic(errors.Wrap(err, "set single thread mode"))
-	}
 }

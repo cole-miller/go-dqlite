@@ -10,7 +10,7 @@ BINARY=$DIR/main
 CLUSTER=127.0.0.1:9001,127.0.0.1:9002,127.0.0.1:9003,127.0.0.1:9004,127.0.0.1:9005,127.0.0.1:9006
 N=7
 
-$GO build -tags libsqlite3 ./cmd/dqlite/
+$GO build ./cmd/dqlite/
 
 set_up_binary() {
     cat > "$DIR"/main.go <<EOF
@@ -71,7 +71,7 @@ func main() {
      app.Close()
 }
 EOF
-    $GO build -o "$BINARY" -tags libsqlite3 "$DIR"/main.go
+    $GO build -o "$BINARY" "$DIR"/main.go
 }
 
 start_node() {
