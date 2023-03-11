@@ -95,7 +95,7 @@ The `--join` flag is optional and should be used only for additional nodes after
 the first one. It informs them about the existing cluster, so they can
 automatically join it.
 
-Now we can start using the cluster. Let's insert a key pair:
+Now we can start using the cluster. Let's insert a key/value pair:
 
 ```bash
 curl -X PUT -d my-value http://127.0.0.1:8001/my-key
