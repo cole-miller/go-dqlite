@@ -93,6 +93,10 @@ func init() {
 	C.signal(C.SIGPIPE, C.SIG_IGN)
 }
 
+func DqliteInit() {
+	C.dqlite_init()
+}
+
 // NewNode creates a new Node instance.
 func NewNode(ctx context.Context, id uint64, address string, dir string) (*Node, error) {
 	requiredVersion := dqliteMajorVersion*100 + dqliteMinorVersion

@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/canonical/go-dqlite/internal/protocol"
+	"github.com/canonical/go-dqlite/internal/bindings"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
 )
@@ -23,6 +24,10 @@ import (
 // used to create a unique driver name, MUST be modified atomically
 // https://pkg.go.dev/sync/atomic#AddInt64
 var driverIndex int64
+
+func Setup() {
+	bindings.DqliteInit()
+}
 
 // App is a high-level helper for initializing a typical dqlite-based Go
 // application.
