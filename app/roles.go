@@ -6,8 +6,6 @@ import (
 	"github.com/canonical/go-dqlite/client"
 )
 
-const minVoters = 3
-
 // RolesConfig can be used to tweak the algorithm implemented by RolesChanges.
 type RolesConfig struct {
 	Voters   int // Target number of voters, 3 by default.
@@ -39,11 +37,6 @@ type RolesChanges struct {
 //
 // Return -1 in case no role change is needed.
 func (c *RolesChanges) Assume(id uint64) client.NodeRole {
-	// If the cluster is still too small, do nothing.
-	if c.size() < minVoters {
-		return -1
-	}
-
 	node := c.get(id)
 
 	// If we are not in the cluster, it means we were removed, just do nothing.
@@ -128,17 +121,6 @@ func (c *RolesChanges) Handover(id uint64) (client.NodeRole, []client.NodeInfo) 
 // assume it, in order of preference.
 func (c *RolesChanges) Adjust(leader uint64) (client.NodeRole, []client.NodeInfo) {
 	if c.size() == 1 {
-		return -1, nil
-	}
-
-	// If the cluster is too small, make sure we have just one voter (us).
-	if c.size() < minVoters {
-		for node := range c.State {
-			if node.ID == leader || node.Role != client.Voter {
-				continue
-			}
-			return client.Spare, []client.NodeInfo{node}
-		}
 		return -1, nil
 	}
 
