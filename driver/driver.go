@@ -888,5 +888,9 @@ func driverError(log client.LogFunc, err error) error {
 		log(client.LogDebug, "EOF detected: %v", err)
 		return driver.ErrBadConn
 	}
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		log(client.LogDebug, "deadline exceeded: %v", err)
+		return driver.ErrBadConn
+	}
 	return err
 }
