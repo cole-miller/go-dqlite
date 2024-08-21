@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -463,6 +464,15 @@ func (a *App) Open(ctx context.Context, database string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	go func() {
+		log.Printf("Started logging db stats for dqlite")
+		for {
+			stats := db.Stats()
+			log.Printf("<db-stats>: %#+v", stats)
+			time.Sleep(time.Second * 3)
+		}
+	}()
 
 	for i := 0; i < 60; i++ {
 		err = db.PingContext(ctx)
