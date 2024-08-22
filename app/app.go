@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
