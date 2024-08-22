@@ -466,10 +466,10 @@ func (a *App) Open(ctx context.Context, database string) (*sql.DB, error) {
 	}
 
 	go func() {
-		fmt.Printf(os.Stderr, "Started logging db stats for dqlite")
+		fmt.Fprintf(os.Stderr, "Started logging db stats for dqlite")
 		for {
 			stats := db.Stats()
-			fmt.Printf(os.Stderr, "<db-stats>: %#+v", stats)
+			fmt.Fprintf(os.Stderr, "<db-stats>: %#+v", stats)
 			time.Sleep(time.Second * 3)
 		}
 	}()
