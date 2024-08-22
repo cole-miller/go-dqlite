@@ -464,15 +464,6 @@ func (a *App) Open(ctx context.Context, database string) (*sql.DB, error) {
 		return nil, err
 	}
 
-	go func() {
-		fmt.Fprintf(os.Stderr, "Started logging db stats for dqlite")
-		for {
-			stats := db.Stats()
-			fmt.Fprintf(os.Stderr, "<db-stats>: %#+v", stats)
-			time.Sleep(time.Second * 3)
-		}
-	}()
-
 	for i := 0; i < 60; i++ {
 		err = db.PingContext(ctx)
 		if err == nil {
@@ -487,6 +478,15 @@ func (a *App) Open(ctx context.Context, database string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	go func() {
+		a.debug("Started logging db stats for dqlite")
+		for {
+			stats := db.Stats()
+			a.debug("<db-stats>: %#+v", stats)
+			time.Sleep(time.Second * 3)
+		}
+	}()
 
 	return db, nil
 }
