@@ -19,7 +19,7 @@ import (
 )
 
 // MaxConcurrentLeaderConns is the default maximum number of concurrent requests to other cluster members to probe for leadership.
-const MaxConcurrentLeaderConns int64 = 10
+const MaxConcurrentLeaderConns int64 = 1
 
 // DialFunc is a function that can be used to establish a network connection.
 type DialFunc func(context.Context, string) (net.Conn, error)
